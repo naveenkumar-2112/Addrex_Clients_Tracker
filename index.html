@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ADDREX - Client Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 30px;
+            background-color: #f4f6f9;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Background Logo */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 500px;
+            height: 500px;
+            background: url("logo.png") no-repeat center;
+            background-size: contain;
+            opacity: 0.05; /* Professional Transparency */
+            z-index: -1;
+        }
+
+        h1 {
+            color: #2c3e50;
+        }
+
+        .summary {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-around;
+            font-weight: bold;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #2c3e50;
+            color: white;
+        }
+
+        input, select {
+            padding: 5px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            margin-top: 15px;
+            padding: 8px 15px;
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background-color: #1a252f;
+        }
+
+        .delete-btn {
+            background-color: red;
+        }
+
+        .delete-btn:hover {
+            background-color: darkred;
+        }
+
+        .save-btn {
+            background-color: green;
+        }
+
+        .save-btn:hover {
+            background-color: darkgreen;
+        }
+
+        .disabled {
+            background-color: gray !important;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>ADDREX - Client Status Tracker</h1>
+
+<div class="summary">
+    <div>Total Clients: <span id="total">0</span></div>
+    <div>Accepted: <span id="accepted">0</span></div>
+    <div>Rejected: <span id="rejected">0</span></div>
+    <div>Conversion Rate: <span id="conversion">0%</span></div>
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>S.No</th>
+            <th>Instagram ID</th>
+            <th>Template Sent</th>
+            <th>Client Response</th>
+            <th>Proposal Status</th>
+            <th>Delete</th>
+        </tr>
+    </thead>
+    <tbody id="clientTable"></tbody>
+</table>
+
+<button id="addBtn" onclick="addClient()">Add New Client</button>
+<button class="save-btn" onclick="saveAll()">Save / Update</button>
+
+<script>
+    let clients = JSON.parse(localStorage.getItem("clients")) || [];
+    let tempClients = JSON.parse(JSON.stringify(clients));
+
+    function renderTable() {
+        const table = document.getElementById("clientTable");
+        table.innerHTML = "";
+
+        tempClients.forEach((client, index) => {
+            table.innerHTML += `
+                <tr>
+                    <td>${index + 1}</td>
+
+                    <td>
+                        <input value="${client.id}"
+                        oninput="updateTemp(${index}, 'id', this.value)">
+                    </td>
+
+                    <td>
+                        <select onchange="updateTemp(${index}, 'template', this.value)">
+                            <option ${client.template==="No"?"selected":""}>No</option>
+                            <option ${client.template==="Yes"?"selected":""}>Yes</option>
+                        </select>
+                    </td>
+
+                    <td>
+                        <select onchange="updateTemp(${index}, 'response', this.value)">
+                            <option ${client.response==="No Response"?"selected":""}>No Response</option>
+                            <option ${client.response==="Interested"?"selected":""}>Interested</option>
+                            <option ${client.response==="Not Interested"?"selected":""}>Not Interested</option>
+                        </select>
+                    </td>
+
+                    <td>
+                        <select onchange="updateTemp(${index}, 'proposal', this.value)">
+                            <option ${client.proposal==="Pending"?"selected":""}>Pending</option>
+                            <option ${client.proposal==="Accepted"?"selected":""}>Accepted</option>
+                            <option ${client.proposal==="Rejected"?"selected":""}>Rejected</option>
+                        </select>
+                    </td>
+
+                    <td>
+                        <button class="delete-btn" onclick="deleteClient(${index})">X</button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        updateSummary();
+        validateAddButton();
+    }
+
+    function updateTemp(index, field, value) {
+        tempClients[index][field] = value;
+        validateAddButton();
+    }
+
+    function validateAddButton() {
+        const addBtn = document.getElementById("addBtn");
+
+        if (tempClients.length === 0) {
+            addBtn.classList.remove("disabled");
+            addBtn.disabled = false;
+            return;
+        }
+
+        const lastClient = tempClients[tempClients.length - 1];
+
+        if (!lastClient.id.trim()) {
+            addBtn.classList.add("disabled");
+            addBtn.disabled = true;
+        } else {
+            addBtn.classList.remove("disabled");
+            addBtn.disabled = false;
+        }
+    }
+
+    function addClient() {
+        tempClients.push({
+            id: "",
+            template: "No",
+            response: "No Response",
+            proposal: "Pending"
+        });
+        renderTable();
+    }
+
+    function deleteClient(index) {
+        tempClients.splice(index, 1);
+        clients = JSON.parse(JSON.stringify(tempClients));
+        localStorage.setItem("clients", JSON.stringify(clients));
+        renderTable();
+    }
+
+    function saveAll() {
+        clients = JSON.parse(JSON.stringify(tempClients));
+        localStorage.setItem("clients", JSON.stringify(clients));
+        alert("Data Saved Successfully ✅");
+        updateSummary();
+    }
+
+    function updateSummary() {
+        document.getElementById("total").innerText = tempClients.length;
+
+        let accepted = tempClients.filter(c => c.proposal === "Accepted").length;
+        let rejected = tempClients.filter(c => c.proposal === "Rejected").length;
+
+        document.getElementById("accepted").innerText = accepted;
+        document.getElementById("rejected").innerText = rejected;
+
+        let conversion = tempClients.length > 0 ?
+            ((accepted / tempClients.length) * 100).toFixed(1) : 0;
+
+        document.getElementById("conversion").innerText = conversion + "%";
+    }
+
+    if (clients.length === 0) {
+        tempClients = [{
+            id: "",
+            template: "No",
+            response: "No Response",
+            proposal: "Pending"
+        }];
+    }
+
+    renderTable();
+</script>
+
+</body>
+</html>
