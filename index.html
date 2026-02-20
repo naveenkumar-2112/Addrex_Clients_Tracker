@@ -130,133 +130,105 @@
 <button id="addBtn" onclick="addClient()">Add New Client</button>
 <button class="save-btn" onclick="saveAll()">Save / Update</button>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
-    let clients = JSON.parse(localStorage.getItem("clients")) || [];
-    let tempClients = JSON.parse(JSON.stringify(clients));
+const supabaseUrl = "YOUR_PROJECT_URL";
+const supabaseKey = "YOUR_ANON_PUBLIC_KEY";
+const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-    function renderTable() {
-        const table = document.getElementById("clientTable");
-        table.innerHTML = "";
+let clients = [];
 
-        tempClients.forEach((client, index) => {
-            table.innerHTML += `
-                <tr>
-                    <td>${index + 1}</td>
+async function fetchClients() {
+    const { data, error } = await supabase
+        .from("clients")
+        .select("*")
+        .order("created_at", { ascending: true });
 
-                    <td>
-                        <input value="${client.id}"
-                        oninput="updateTemp(${index}, 'id', this.value)">
-                    </td>
-
-                    <td>
-                        <select onchange="updateTemp(${index}, 'template', this.value)">
-                            <option ${client.template==="No"?"selected":""}>No</option>
-                            <option ${client.template==="Yes"?"selected":""}>Yes</option>
-                        </select>
-                    </td>
-
-                    <td>
-                        <select onchange="updateTemp(${index}, 'response', this.value)">
-                            <option ${client.response==="No Response"?"selected":""}>No Response</option>
-                            <option ${client.response==="Interested"?"selected":""}>Interested</option>
-                            <option ${client.response==="Not Interested"?"selected":""}>Not Interested</option>
-                        </select>
-                    </td>
-
-                    <td>
-                        <select onchange="updateTemp(${index}, 'proposal', this.value)">
-                            <option ${client.proposal==="Pending"?"selected":""}>Pending</option>
-                            <option ${client.proposal==="Accepted"?"selected":""}>Accepted</option>
-                            <option ${client.proposal==="Rejected"?"selected":""}>Rejected</option>
-                        </select>
-                    </td>
-
-                    <td>
-                        <button class="delete-btn" onclick="deleteClient(${index})">X</button>
-                    </td>
-                </tr>
-            `;
-        });
-
-        updateSummary();
-        validateAddButton();
+    if (error) {
+        console.error(error);
+        return;
     }
 
-    function updateTemp(index, field, value) {
-        tempClients[index][field] = value;
-        validateAddButton();
-    }
-
-    function validateAddButton() {
-        const addBtn = document.getElementById("addBtn");
-
-        if (tempClients.length === 0) {
-            addBtn.classList.remove("disabled");
-            addBtn.disabled = false;
-            return;
-        }
-
-        const lastClient = tempClients[tempClients.length - 1];
-
-        if (!lastClient.id.trim()) {
-            addBtn.classList.add("disabled");
-            addBtn.disabled = true;
-        } else {
-            addBtn.classList.remove("disabled");
-            addBtn.disabled = false;
-        }
-    }
-
-    function addClient() {
-        tempClients.push({
-            id: "",
-            template: "No",
-            response: "No Response",
-            proposal: "Pending"
-        });
-        renderTable();
-    }
-
-    function deleteClient(index) {
-        tempClients.splice(index, 1);
-        clients = JSON.parse(JSON.stringify(tempClients));
-        localStorage.setItem("clients", JSON.stringify(clients));
-        renderTable();
-    }
-
-    function saveAll() {
-        clients = JSON.parse(JSON.stringify(tempClients));
-        localStorage.setItem("clients", JSON.stringify(clients));
-        alert("Data Saved Successfully ✅");
-        updateSummary();
-    }
-
-    function updateSummary() {
-        document.getElementById("total").innerText = tempClients.length;
-
-        let accepted = tempClients.filter(c => c.proposal === "Accepted").length;
-        let rejected = tempClients.filter(c => c.proposal === "Rejected").length;
-
-        document.getElementById("accepted").innerText = accepted;
-        document.getElementById("rejected").innerText = rejected;
-
-        let conversion = tempClients.length > 0 ?
-            ((accepted / tempClients.length) * 100).toFixed(1) : 0;
-
-        document.getElementById("conversion").innerText = conversion + "%";
-    }
-
-    if (clients.length === 0) {
-        tempClients = [{
-            id: "",
-            template: "No",
-            response: "No Response",
-            proposal: "Pending"
-        }];
-    }
-
+    clients = data;
     renderTable();
+}
+
+function renderTable() {
+    const table = document.getElementById("clientTable");
+    table.innerHTML = "";
+
+    clients.forEach((client, index) => {
+        table.innerHTML += `
+            <tr>
+                <td>${index + 1}</td>
+                <td><input value="${client.instagram_id || ""}" 
+                    onchange="updateClient('${client.id}', 'instagram_id', this.value)"></td>
+
+                <td>
+                    <select onchange="updateClient('${client.id}', 'template_sent', this.value)">
+                        <option ${client.template_sent==="No"?"selected":""}>No</option>
+                        <option ${client.template_sent==="Yes"?"selected":""}>Yes</option>
+                    </select>
+                </td>
+
+                <td>
+                    <select onchange="updateClient('${client.id}', 'client_response', this.value)">
+                        <option ${client.client_response==="No Response"?"selected":""}>No Response</option>
+                        <option ${client.client_response==="Interested"?"selected":""}>Interested</option>
+                        <option ${client.client_response==="Not Interested"?"selected":""}>Not Interested</option>
+                    </select>
+                </td>
+
+                <td>
+                    <select onchange="updateClient('${client.id}', 'proposal_status', this.value)">
+                        <option ${client.proposal_status==="Pending"?"selected":""}>Pending</option>
+                        <option ${client.proposal_status==="Accepted"?"selected":""}>Accepted</option>
+                        <option ${client.proposal_status==="Rejected"?"selected":""}>Rejected</option>
+                    </select>
+                </td>
+
+                <td>
+                    <button onclick="deleteClient('${client.id}')">X</button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+async function addClient() {
+    const { error } = await supabase
+        .from("clients")
+        .insert([{
+            instagram_id: "",
+            template_sent: "No",
+            client_response: "No Response",
+            proposal_status: "Pending"
+        }]);
+
+    if (!error) fetchClients();
+}
+
+async function updateClient(id, field, value) {
+    await supabase
+        .from("clients")
+        .update({ [field]: value })
+        .eq("id", id);
+}
+
+async function deleteClient(id) {
+    await supabase
+        .from("clients")
+        .delete()
+        .eq("id", id);
+
+    fetchClients();
+}
+
+fetchClients();
 </script>
+
 
 </body>
 </html>
+
